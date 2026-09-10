@@ -3,22 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Premium</title>
+    <title>Kanban Premium - Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-header">
-        <h1>Loterica</h1>
-    </div>
-    
-    <div class="board-wrapper">
-        <div class="board" id="board">
-            <!-- As colunas entram aqui -->
+    <div class="app-layout">
+        <!-- MENU LATERAL ESQUERDO -->
+        <nav class="app-sidebar-left">
+            <div class="sidebar-logo" title="Workspace">L</div>
+            <div class="sidebar-divider"></div>
+            <button class="sidebar-icon-btn active" title="Quadro Kanban">📋</button>
+            
+            <!-- Botão de Configurações na Barra Lateral -->
+            <button class="sidebar-icon-btn settings-icon-btn" id="open-settings-btn" title="Configurações">
+                ⚙️
+            </button>
+        </nav>
+
+        <!-- CONTEÚDO PRINCIPAL -->
+        <div class="main-content-wrapper">
+            <header class="app-header">
+                <h1>Loterica</h1>
+            </header>
+                 
+            <div class="board-wrapper">
+                <div class="board" id="board">
+                    <!-- As colunas entram aqui -->
+                </div>
+                <button class="add-column-btn" id="add-column-btn">
+                    <span>+</span> Nova Coluna
+                </button>
+            </div>
         </div>
-        <button class="add-column-btn" id="add-column-btn">
-            <span>+</span> Nova Coluna
-        </button>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÕES (ESTILO DISCORD) -->
+    <div id="settings-modal" class="discord-modal-overlay">
+        <div class="discord-settings-container">
+            <button class="discord-close-btn" id="btn-close-settings">✖</button>
+
+            <!-- Sidebar de Navegação do Modal -->
+            <div class="discord-sidebar">
+                <div class="sidebar-category">Usuário</div>
+                <button class="sidebar-tab active" data-target="tab-profile">👤 Meu Perfil</button>
+                
+                <div class="sidebar-category">Aplicativo</div>
+                <button class="sidebar-tab" data-target="tab-appearance">🎨 Aparência e Temas</button>
+            </div>
+
+            <!-- Conteúdo do Modal -->
+            <div class="discord-content">
+                <div class="settings-panel active" id="tab-profile">
+                    <h2>Meu Perfil</h2>
+                    <p class="panel-desc">Gerencie sua identificação pessoal exibida nos cartões do quadro.</p>
+                    
+                    <div class="profile-preview-box">
+                        <div class="preview-avatar" id="preview-avatar-letter">S</div>
+                        <div class="preview-info">
+                            <span class="preview-name" id="preview-name-text">Saniel</span>
+                            <span class="preview-sub">Membro Ativo</span>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nome de Exibição / Apelido</label>
+                        <input type="text" id="settings-username" placeholder="Digite seu nome...">
+                    </div>
+                </div>
+
+                <div class="settings-panel" id="tab-appearance">
+                    <h2>Aparência</h2>
+                    <p class="panel-desc">Personalize a identidade visual e os temas do seu Workspace baseados na sua paleta.</p>
+                    
+                    <div class="theme-grid">
+                        <div class="theme-option-card" data-theme="sunset">
+                            <div class="theme-preview-box" style="background: linear-gradient(135deg, #161E2F, #B51A2B);"></div>
+                            <span>Sunset Red</span>
+                        </div>
+                        <div class="theme-option-card" data-theme="midnight">
+                            <div class="theme-preview-box" style="background: linear-gradient(135deg, #161E2F, #242F49);"></div>
+                            <span>Midnight Dark</span>
+                        </div>
+                        <div class="theme-option-card" data-theme="cosmic">
+                            <div class="theme-preview-box" style="background: linear-gradient(135deg, #1e0533, #C850C0);"></div>
+                            <span>Cosmic Purple</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL DE TAREFA -->
@@ -43,9 +117,8 @@
     <!-- MODAL DE COLUNA -->
     <div id="column-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>Nova Coluna</h3>
+            <h3>Nome da coluna</h3>
             <div class="input-group">
-                <label>Nome da coluna</label>
                 <input type="text" id="modal-column-title" placeholder="Ex: Em Validação">
             </div>
             <div class="modal-actions">
@@ -55,7 +128,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- MODAL DE CONFIRMAÇÃO -->
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal-content" style="align-items: center;">
             <h3 id="confirm-title" style="color: #ff6b81;">Atenção</h3>
@@ -68,5 +141,7 @@
             </div>
         </div>
     </div>
-    </body>
+
+    <script src="script.js"></script>
+</body>
 </html>

@@ -1,8 +1,83 @@
 // ==========================================
-// SISTEMA DE MODAIS (JANELAS FLUTUANTES)
+// CONFIGURAÇÕES ESTILO DISCORD (PERFIL E ABAS)
 // ==========================================
 
-// --- Modal de Tarefas ---
+const settingsModal = document.getElementById('settings-modal');
+const usernameInput = document.getElementById('settings-username');
+const previewNameText = document.getElementById('preview-name-text');
+const previewAvatarLetter = document.getElementById('preview-avatar-letter');
+
+function openSettingsModal() {
+    const savedUser = localStorage.getItem('kanbanUser') || 'Saniel';
+    usernameInput.value = savedUser;
+    previewNameText.textContent = savedUser;
+    previewAvatarLetter.textContent = savedUser.charAt(0).toUpperCase();
+    
+    settingsModal.classList.add('active');
+}
+
+function closeSettingsModal() {
+    settingsModal.classList.remove('active');
+    const newName = usernameInput.value.trim();
+    if (newName) {
+        localStorage.setItem('kanbanUser', newName);
+        previewNameText.textContent = newName;
+        previewAvatarLetter.textContent = newName.charAt(0).toUpperCase();
+    }
+}
+
+document.getElementById('open-settings-btn').addEventListener('click', openSettingsModal);
+document.getElementById('btn-close-settings').addEventListener('click', closeSettingsModal);
+
+// Atualiza o preview ao digitar o nome
+usernameInput.addEventListener('input', () => {
+    const val = usernameInput.value.trim() || 'Usuário';
+    previewNameText.textContent = val;
+    previewAvatarLetter.textContent = val.charAt(0).toUpperCase();
+});
+
+// Navegação entre as Abas do Discord
+const sidebarTabs = document.querySelectorAll('.sidebar-tab[data-target]');
+const settingsPanels = document.querySelectorAll('.settings-panel');
+
+sidebarTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        sidebarTabs.forEach(t => t.classList.remove('active'));
+        settingsPanels.forEach(p => p.classList.remove('active'));
+
+        tab.classList.add('active');
+        const targetId = tab.getAttribute('data-target');
+        document.getElementById(targetId).classList.add('active');
+    });
+});
+
+// Lógica de Temas
+const themeCards = document.querySelectorAll('.theme-option-card');
+themeCards.forEach(card => {
+    card.addEventListener('click', () => {
+        const themeName = card.getAttribute('data-theme');
+        applyTheme(themeName);
+        localStorage.setItem('kanbanTheme', themeName);
+    });
+});
+
+function applyTheme(themeName) {
+    document.body.className = '';
+    if (themeName !== 'cosmic') {
+        document.body.classList.add('theme-' + themeName);
+    }
+}
+
+function loadUserSettings() {
+    const savedTheme = localStorage.getItem('kanbanTheme') || 'sunset';
+    applyTheme(savedTheme);
+}
+
+
+// ==========================================
+// MODAIS DE TAREFAS, COLUNAS E CONFIRMAÇÃO
+// ==========================================
+
 let currentTaskCallback = null; 
 const taskModal = document.getElementById('task-modal');
 const taskTitleInput = document.getElementById('modal-task-text');
@@ -12,9 +87,10 @@ const modalTitle = document.getElementById('modal-title');
 function openTaskModal(title, defaultText, defaultAssignee, callback) {
     modalTitle.textContent = title;
     taskTitleInput.value = defaultText || '';
-    taskAssigneeInput.value = defaultAssignee || 'Saniel';
-    currentTaskCallback = callback;
+    const defaultUser = localStorage.getItem('kanbanUser') || 'Saniel';
+    taskAssigneeInput.value = defaultAssignee || defaultUser;
     
+    currentTaskCallback = callback;
     taskModal.classList.add('active');
     taskTitleInput.focus();
 }
@@ -36,8 +112,7 @@ document.getElementById('btn-save-task').addEventListener('click', () => {
     }
 });
 
-
-// --- Modal de Colunas ---
+// Colunas
 const colModal = document.getElementById('column-modal');
 const colTitleInput = document.getElementById('modal-column-title');
 
@@ -47,9 +122,7 @@ function openColModal() {
     colTitleInput.focus();
 }
 
-function closeColModal() {
-    colModal.classList.remove('active');
-}
+function closeColModal() { colModal.classList.remove('active'); }
 
 document.getElementById('btn-cancel-column').addEventListener('click', closeColModal);
 document.getElementById('btn-save-column').addEventListener('click', () => {
@@ -62,8 +135,7 @@ document.getElementById('btn-save-column').addEventListener('click', () => {
     }
 });
 
-
-// --- Modal de Confirmação (Exclusão) ---
+// Confirmação (Exclusão)
 let currentConfirmCallback = null;
 const confirmModal = document.getElementById('confirm-modal');
 const confirmTitle = document.getElementById('confirm-title');
@@ -89,17 +161,16 @@ document.getElementById('btn-save-confirm').addEventListener('click', () => {
 
 
 // ==========================================
-// INICIALIZAÇÃO E ARRASTAR COLUNAS/CARTÕES
+// ARRASTAR COLUNAS / CARTÕES E LOCALSTORAGE
 // ==========================================
-
 const boardElement = document.getElementById('board');
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadUserSettings();
     loadBoard();
     document.getElementById('add-column-btn').addEventListener('click', openColModal);
 });
 
-// Lógica de Drag and Drop para COLUNAS
 boardElement.addEventListener('dragover', e => {
     e.preventDefault();
     const draggingColumn = document.querySelector('.dragging-column');
@@ -144,10 +215,6 @@ function getInitials(name) {
     return name.charAt(0).toUpperCase();
 }
 
-
-// ==========================================
-// CONSTRUTOR DE COLUNAS
-// ==========================================
 function createColumnElement(id, title) {
     const column = document.createElement('div');
     column.classList.add('column');
@@ -176,7 +243,6 @@ function createColumnElement(id, title) {
     deleteColBtn.style.background = "transparent";
     deleteColBtn.innerHTML = '✖';
     
-    // Substituindo o confirm() nativo pelo nosso Modal Bonito!
     deleteColBtn.addEventListener('click', () => {
         openConfirmModal('Excluir Coluna', `Tem certeza que deseja excluir a coluna "${title}" e todas as suas tarefas?`, () => {
             column.remove();
@@ -211,9 +277,11 @@ function createColumnElement(id, title) {
     addBtn.classList.add('add-btn');
     
     addBtn.addEventListener('click', () => {
-        openTaskModal('Nova Tarefa', '', 'Saniel', (text, assignee) => {
+        const defaultUser = localStorage.getItem('kanbanUser') || 'Saniel';
+        openTaskModal('Nova Tarefa', '', defaultUser, (text, assignee) => {
             const card = createCardElement(text, assignee);
             container.appendChild(card);
+            saveBoard();
         });
     });
 
@@ -226,10 +294,6 @@ function createColumnElement(id, title) {
     return container;
 }
 
-
-// ==========================================
-// CONSTRUTOR DE CARTÕES
-// ==========================================
 function createCardElement(text, assignee) {
     const card = document.createElement('div');
     card.classList.add('card');
@@ -253,6 +317,7 @@ function createCardElement(text, assignee) {
         openTaskModal('Editar Tarefa', cardText.textContent, currentAssignee, (newText, newAssignee) => {
             cardText.textContent = newText;
             assigneeAvatar.innerHTML = `<span>${getInitials(newAssignee)}</span> ${newAssignee}`;
+            saveBoard();
         });
     });
 
@@ -260,7 +325,6 @@ function createCardElement(text, assignee) {
     deleteBtn.classList.add('icon-btn');
     deleteBtn.innerHTML = '🗑';
     
-    // Substituindo o confirm() nativo pelo nosso Modal Bonito!
     deleteBtn.addEventListener('click', () => {
         openConfirmModal('Excluir Tarefa', `Tem certeza que deseja excluir a tarefa "${cardText.textContent}"?`, () => {
             card.remove();
@@ -287,6 +351,7 @@ function createCardElement(text, assignee) {
         openTaskModal('Alterar Responsável', cardText.textContent, currentAssignee, (newText, newAssignee) => {
             cardText.textContent = newText;
             assigneeAvatar.innerHTML = `<span>${getInitials(newAssignee)}</span> ${newAssignee}`;
+            saveBoard();
         });
     });
 
@@ -307,10 +372,6 @@ function createCardElement(text, assignee) {
     return card;
 }
 
-
-// ==========================================
-// SALVAR E CARREGAR (LOCALSTORAGE)
-// ==========================================
 function saveBoard() {
     const columnsData = [];
     document.querySelectorAll('.column').forEach(column => {
@@ -346,5 +407,5 @@ function loadBoard() {
                 container.appendChild(createCardElement(cardData.text, cardData.assignee));
             });
         });
-    } 
+    }
 }
