@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-header">
+        <h1>Loterica</h1>
+    </div>
+    
+    <div class="board-wrapper">
+        <div class="board" id="board">
+            <!-- As colunas entram aqui -->
+        </div>
+        <button class="add-column-btn" id="add-column-btn">
+            <span>+</span> Nova Coluna
+        </button>
+    </div>
+
+    <!-- MODAL DE TAREFA -->
+    <div id="task-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title">Nova Tarefa</h3>
+            <div class="input-group">
+                <label>O que precisa ser feito?</label>
+                <input type="text" id="modal-task-text" placeholder="Ex: Configurar banco de dados">
+            </div>
+            <div class="input-group">
+                <label>Responsável</label>
+                <input type="text" id="modal-task-assignee" placeholder="Ex: Saniel">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btn-cancel-task">Cancelar</button>
+                <button class="btn-save" id="btn-save-task">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE COLUNA -->
+    <div id="column-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Nova Coluna</h3>
+            <div class="input-group">
+                <label>Nome da coluna</label>
+                <input type="text" id="modal-column-title" placeholder="Ex: Em Validação">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btn-cancel-column">Cancelar</button>
+                <button class="btn-save" id="btn-save-column">Criar Coluna</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content" style="align-items: center;">
+            <h3 id="confirm-title" style="color: #ff6b81;">Atenção</h3>
+            <p id="confirm-message" style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px; text-align: center;">
+                Tem certeza?
+            </p>
+            <div class="modal-actions" style="width: 100%; justify-content: center; margin-top: 10px;">
+                <button class="btn-cancel" id="btn-cancel-confirm">Cancelar</button>
+                <button class="btn-danger" id="btn-save-confirm">Sim, Excluir</button>
+            </div>
+        </div>
+    </div>
+    </body>
+</html>
