@@ -6,8 +6,39 @@
     <title>Kanban Premium - Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <!-- TELA DE LOGIN / REGISTRO COM SUPABASE -->
+    <div id="login-overlay" class="modal-overlay active" style="z-index: 3000; background: var(--bg-gradient); background-size: 400% 400%; animation: gradientBG 15s ease infinite;">
+        <div class="modal-content" style="align-items: center;">
+            <div class="sidebar-logo" style="margin-bottom: 10px; width: 64px; height: 64px; font-size: 28px;">L</div>
+            <h3 style="margin-bottom: 5px;">Kanban Premium</h3>
+            <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 20px; text-align: center;">Faça login com seu nome de usuário</p>
+            
+            <div class="input-group" style="width: 100%;">
+                <label>Nome de Usuário</label>
+                <input type="text" id="login-username" placeholder="Ex: Saniel" autocomplete="username">
+            </div>
+            <!-- Campo de e-mail exclusivo para o momento de Criar Conta -->
+            <div class="input-group" id="register-email-group" style="width: 100%; margin-top: 10px; display: none;">
+                <label>E-mail</label>
+                <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+            </div>
+            <div class="input-group" style="width: 100%; margin-top: 10px;">
+                <label>Senha</label>
+                <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            
+            <div class="modal-actions" style="width: 100%; justify-content: space-between; margin-top: 24px;">
+                <button class="btn-cancel" id="btn-toggle-register" style="width: 48%;">Criar Conta</button>
+                <button class="btn-save" id="btn-submit-login" style="width: 48%;">Entrar</button>
+            </div>
+            <p id="login-error-msg" style="color: #ff7675; font-size: 12px; margin-top: 15px; text-align: center; display: none;"></p>
+        </div>
+    </div>
+
     <div class="app-layout">
         <!-- MENU LATERAL ESQUERDO -->
         <nav class="app-sidebar-left">
@@ -15,7 +46,7 @@
             <div class="sidebar-divider"></div>
 
             <button class="sidebar-icon-btn view-nav-btn active" data-view="board" title="Quadro Kanban" aria-label="Ver quadro Kanban">📋</button>
-            <button class="sidebar-icon-btn view-nav-btn" data-view="calendar" title="Calendário" aria-label="Ver calendário de prazos">🗓️</button>
+            <button class="sidebar-icon-btn view-nav-btn" data-view="calendar" title="Calendário" aria-label="Ver calendário de prazos">📅</button>
             <button class="sidebar-icon-btn view-nav-btn" data-view="chat" title="Chat da Equipe" aria-label="Ver chat da equipe">💬</button>
 
             <!-- Botão de Configurações na Barra Lateral -->
@@ -26,8 +57,9 @@
 
         <!-- CONTEÚDO PRINCIPAL -->
         <div class="main-content-wrapper">
-            <header class="app-header">
+            <header class="app-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h1 id="main-header-title">Loterica</h1>
+                <button id="btn-logout" class="btn-cancel" style="padding: 6px 12px; font-size: 12px;">Sair</button>
             </header>
 
             <!-- PAINEL: QUADRO KANBAN -->
@@ -63,6 +95,7 @@
                     <div class="calendar-weekdays">
                         <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
                     </div>
+
                     <div class="calendar-grid" id="calendar-grid"></div>
 
                     <div class="calendar-day-panel">
@@ -72,20 +105,22 @@
                 </div>
             </div>
 
-            <!-- PAINEL: CHAT DA EQUIPE (wireframe, mensagens ficam salvas neste navegador) -->
+            <!-- PAINEL: CHAT DA EQUIPE (3 COLUNAS) -->
             <div class="view-panel" id="view-chat">
                 <div class="chat-wrapper">
+                    <!-- ESQUERDA: Canais -->
                     <aside class="chat-sidebar">
-                        <div class="chat-sidebar-title">Canais</div>
-                        <button class="chat-channel active" data-channel="geral"># geral</button>
-                        <button class="chat-channel" data-channel="equipe"># equipe</button>
-                        <button class="chat-channel" data-channel="avisos"># avisos</button>
-
-                        <div class="chat-sidebar-title" style="margin-top: 24px;">Membros</div>
-                        <div class="chat-member"><span class="chat-member-dot"></span> Você</div>
-                        <div class="chat-member"><span class="chat-member-dot chat-member-dot-offline"></span> Equipe</div>
+                        <div class="chat-sidebar-title" style="display: flex; justify-content: space-between; align-items: center;">
+                            Canais
+                            <button id="add-channel-btn" class="icon-btn" style="background: transparent; color: white; padding: 0 5px;" title="Criar Canal" aria-label="Criar novo canal">+</button>
+                        </div>
+                        
+                        <div id="chat-channels-container" style="display: flex; flex-direction: column; gap: 4px;">
+                            <!-- Canais dinâmicos -->
+                        </div>
                     </aside>
 
+                    <!-- CENTRO: Mensagens -->
                     <div class="chat-main">
                         <div class="chat-header">
                             <h2 id="chat-channel-title"># geral</h2>
@@ -96,32 +131,39 @@
                             <button type="submit" class="btn-save">Enviar</button>
                         </form>
                     </div>
+
+                    <!-- DIREITA: Membros Online / Offline -->
+                    <aside class="chat-members-sidebar" id="chat-members-sidebar">
+                        <div class="chat-sidebar-title">Online — <span id="online-count">0</span></div>
+                        <div id="members-online-list" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px;"></div>
+                        
+                        <div class="chat-sidebar-title">Offline</div>
+                        <div id="members-offline-list" style="display: flex; flex-direction: column; gap: 4px;"></div>
+                    </aside>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE CONFIGURAÇÕES (ESTILO DISCORD) -->
+    <!-- MODAL DE CONFIGURAÇÕES -->
     <div id="settings-modal" class="discord-modal-overlay">
         <div class="discord-settings-container">
-            <button class="discord-close-btn" id="btn-close-settings" aria-label="Fechar configurações sem salvar">✖</button>
+            <button class="discord-close-btn" id="btn-close-settings" aria-label="Fechar configurações sem salvar">✕</button>
 
-            <!-- Sidebar de Navegação do Modal -->
             <div class="discord-sidebar">
                 <div class="sidebar-category">Usuário</div>
                 <button class="sidebar-tab active" data-target="tab-profile">👤 Meu Perfil</button>
-
+                
                 <div class="sidebar-category">Aplicativo</div>
                 <button class="sidebar-tab" data-target="tab-appearance">🎨 Aparência e Temas</button>
                 <button class="sidebar-tab" data-target="tab-data">💾 Dados</button>
             </div>
 
-            <!-- Conteúdo do Modal -->
             <div class="discord-content">
                 <div class="settings-panel active" id="tab-profile">
                     <h2>Meu Perfil</h2>
                     <p class="panel-desc">Gerencie sua identificação pessoal exibida nos cartões do quadro.</p>
-
+                    
                     <div class="profile-preview-box">
                         <div class="preview-avatar" id="preview-avatar-letter">S</div>
                         <div class="preview-info">
@@ -143,7 +185,7 @@
                 <div class="settings-panel" id="tab-appearance">
                     <h2>Aparência</h2>
                     <p class="panel-desc">Personalize a identidade visual e os temas do seu Workspace baseados na sua paleta.</p>
-
+                    
                     <div class="theme-grid">
                         <div class="theme-option-card" data-theme="sunset" role="button" tabindex="0">
                             <div class="theme-preview-box" style="background: linear-gradient(135deg, #161E2F, #B51A2B);"></div>
@@ -162,11 +204,11 @@
 
                 <div class="settings-panel" id="tab-data">
                     <h2>Dados</h2>
-                    <p class="panel-desc">Exporte um backup do seu quadro ou importe um arquivo salvo anteriormente. Útil antes de limpar o cache do navegador ou para levar seu quadro para outro computador.</p>
-
+                    <p class="panel-desc">Exporte um backup do seu quadro ou importe um arquivo salvo anteriormente.</p>
+                    
                     <div class="data-actions">
-                        <button class="btn-save" id="btn-export-data">⬇️ Exportar Dados</button>
-                        <label class="btn-cancel data-import-label" for="import-file-input">⬆️ Importar Dados</label>
+                        <button class="btn-save" id="btn-export-data">📥 Exportar Dados</button>
+                        <label class="btn-cancel data-import-label" for="import-file-input">📤 Importar Dados</label>
                         <input type="file" id="import-file-input" accept="application/json" style="display:none;">
                     </div>
                 </div>
@@ -197,7 +239,7 @@
         </div>
     </div>
 
-    <!-- MODAL DE COLUNA (criar e renomear) -->
+    <!-- MODAL DE COLUNA -->
     <div id="column-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 id="column-modal-title">Nome da coluna</h3>
@@ -215,9 +257,7 @@
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal-content" style="align-items: center;">
             <h3 id="confirm-title" style="color: #ff6b81;">Atenção</h3>
-            <p id="confirm-message" style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px; text-align: center;">
-                Tem certeza?
-            </p>
+            <p id="confirm-message" style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px; text-align: center;">Tem certeza?</p>
             <div class="modal-actions" style="width: 100%; justify-content: center; margin-top: 10px;">
                 <button class="btn-cancel" id="btn-cancel-confirm">Cancelar</button>
                 <button class="btn-danger" id="btn-save-confirm">Sim, Excluir</button>
