@@ -22,6 +22,14 @@ body.theme-midnight {
     --accent-color: #FFA586;
 }
 
+/* Tema Cosmic agora é explícito (antes era o fallback do :root) */
+body.theme-cosmic {
+    --bg-gradient: linear-gradient(-45deg, #1e0533, #4158D0, #C850C0, #FFCC70);
+    --header-bg: rgba(30, 5, 51, 0.6);
+    --column-bg: rgba(72, 30, 100, 0.35);
+    --accent-color: #C850C0;
+}
+
 /* =========================================
    LAYOUT COM MENU LATERAL ESQUERDO
    ========================================= */
@@ -140,6 +148,20 @@ body {
     font-size: 24px;
     font-weight: 600;
     letter-spacing: 1px;
+}
+
+/* =========================================
+   PAINÉIS DO MENU LATERAL (Board / Calendário / Chat)
+   ========================================= */
+.view-panel {
+    display: none;
+    flex-direction: column;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.view-panel.active {
+    display: flex;
 }
 
 .board-wrapper {
@@ -357,9 +379,11 @@ body {
     gap: 8px;
 }
 
-.theme-option-card:hover {
+.theme-option-card:hover,
+.theme-option-card:focus-visible {
     border-color: #FFA586;
     transform: translateY(-2px);
+    outline: none;
 }
 
 .theme-preview-box {
@@ -373,6 +397,412 @@ body {
     font-weight: 500;
 }
 
+/* Aba de Dados (exportar / importar) */
+.data-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 260px;
+}
+
+.data-import-label {
+    display: block;
+    text-align: center;
+    cursor: pointer;
+}
+
+
+/* =========================================
+   BADGE DE PRAZO DE ENTREGA (SEMÁFORO)
+   ========================================= */
+.due-badge {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.due-badge.has-due {
+    display: inline-flex;
+}
+
+.due-badge.due-green {
+    background: #55efc4;
+    color: #04543c;
+}
+
+.due-badge.due-yellow {
+    background: #ffeaa7;
+    color: #7a5600;
+}
+
+.due-badge.due-red {
+    background: #ff7675;
+    color: #5c0000;
+}
+
+/* =========================================
+   PAINEL: CALENDÁRIO DE PRAZOS
+   ========================================= */
+.calendar-wrapper {
+    padding: 25px 40px 40px;
+    overflow-y: auto;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.calendar-nav h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    min-width: 160px;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.calendar-nav-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.calendar-legend {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.calendar-legend span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.calendar-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.calendar-dot.due-green { background: #55efc4; }
+.calendar-dot.due-yellow { background: #ffeaa7; }
+.calendar-dot.due-red { background: #ff7675; }
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.calendar-cell {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    min-height: 66px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+    color: #fff;
+    font-family: inherit;
+    transition: all 0.15s ease;
+}
+
+.calendar-cell:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.calendar-cell:focus-visible {
+    outline: 2px solid #FFA586;
+    outline-offset: 2px;
+}
+
+.calendar-cell-empty {
+    background: transparent;
+    border: none;
+    cursor: default;
+}
+
+.calendar-cell-today {
+    border-color: #FFA586;
+}
+
+.calendar-cell-selected {
+    background: rgba(181, 26, 43, 0.35);
+    border-color: #B51A2B;
+}
+
+.calendar-day-number {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.calendar-dots {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.calendar-day-panel {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 18px 20px;
+}
+
+.calendar-day-panel h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.calendar-day-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.calendar-task-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.calendar-task-item.due-green { border-left-color: #55efc4; }
+.calendar-task-item.due-yellow { border-left-color: #ffeaa7; }
+.calendar-task-item.due-red { border-left-color: #ff7675; }
+
+.calendar-task-text {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.calendar-task-meta {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.calendar-day-empty {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+/* =========================================
+   PAINEL: CHAT DA EQUIPE (wireframe)
+   ========================================= */
+.chat-wrapper {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.chat-sidebar {
+    width: 220px;
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.chat-sidebar-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: rgba(255, 255, 255, 0.5);
+    margin: 6px 0 6px 10px;
+}
+
+.chat-channel {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.75);
+    text-align: left;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.chat-channel:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.chat-channel.active {
+    background: rgba(181, 26, 43, 0.3);
+    color: #fff;
+    font-weight: 600;
+}
+
+.chat-member {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-member-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #55efc4;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.chat-member-dot-offline {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.chat-main {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-header {
+    padding: 18px 28px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 22px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.chat-empty-state {
+    margin: auto;
+    text-align: center;
+    font-size: 13px;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.chat-bubble {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 10px 14px;
+    max-width: 540px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.chat-bubble-author {
+    font-weight: 600;
+    font-size: 13px;
+    color: #FFA586;
+}
+
+.chat-bubble-text {
+    font-size: 13px;
+    flex-basis: 100%;
+    line-height: 1.4;
+}
+
+.chat-bubble-time {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: auto;
+}
+
+.chat-input-bar {
+    display: flex;
+    gap: 10px;
+    padding: 16px 28px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-input-bar input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+}
+
+.chat-input-bar input:focus {
+    border-color: #FFA586;
+}
 
 /* =========================================
    ESTILOS GERAIS DE ELEMENTOS E MODAIS
@@ -409,6 +839,11 @@ body {
 
 .column-header:active { cursor: grabbing; }
 
+.column-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
 .column h2 {
     font-size: 16px;
     font-weight: 600;
@@ -416,6 +851,9 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     pointer-events: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .cards-container {
@@ -429,6 +867,16 @@ body {
 .cards-container::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.3);
     border-radius: 10px;
+}
+
+.cards-container:empty::after {
+    content: 'Nenhuma tarefa aqui ainda';
+    display: block;
+    text-align: center;
+    padding: 20px 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
 }
 
 .card {
@@ -469,7 +917,8 @@ body {
     transition: opacity 0.2s;
 }
 
-.card:hover .card-actions { opacity: 1; }
+.card:hover .card-actions,
+.card:focus-within .card-actions { opacity: 1; }
 
 .icon-btn {
     background: #f1f2f6;
@@ -484,7 +933,8 @@ body {
 
 .card-footer {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
 }
 
 .assignee-avatar {
@@ -499,9 +949,14 @@ body {
     align-items: center;
     gap: 5px;
     box-shadow: 0 2px 5px rgba(181, 26, 43, 0.3);
+    margin-left: auto;
 }
 
-.assignee-avatar:hover { transform: scale(1.05); }
+.assignee-avatar:hover,
+.assignee-avatar:focus-visible {
+    transform: scale(1.05);
+    outline: none;
+}
 
 .add-card-form {
     margin-top: 15px;
