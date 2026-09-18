@@ -8,6 +8,19 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUserSession = null;
 let presenceChannel = null;
 
+// Leitura tolerante a JSON corrompido no localStorage
+function readJSON(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        const parsed = JSON.parse(raw);
+        return parsed === null ? fallback : parsed;
+    } catch (err) {
+        console.warn(`Valor inválido em localStorage["${key}"], usando padrão.`, err);
+        return fallback;
+    }
+}
+
 // ==========================================
 // CONTROLE DE ACESSO (PERMISSÕES PARA SANIEL)
 // ==========================================
@@ -56,105 +69,173 @@ if (toggleRegisterBtn) {
         toggleRegisterBtn.textContent = isRegistering ? 'Já tenho conta' : 'Criar Conta';
         submitLoginBtn.textContent = isRegistering ? 'Registrar' : 'Entrar';
         if (registerNameGroup) {
-            registerNameGroup.style.display = isRegistering ? 'block' : 'none';
+            registerNameGroup.style.display = isRegistering ? '' : 'none'; // '' volta ao flex-column do CSS
+        }
+        if (passwordInput) {
+            passwordInput.setAttribute('autocomplete', isRegistering ? 'new-password' : 'current-password');
         }
         if (errorMsg) errorMsg.style.display = 'none';
     });
 }
 
-if (submitLoginBtn) {
-    submitLoginBtn.addEventListener('click', async () => {
+function showLoginError(message) {
+    if (!errorMsg) return;
+    errorMsg.textContent = message;
+    errorMsg.style.display = 'block';
+}
+
+let loginInFlight = false;
+
+async function handleLoginSubmit() {
+    if (loginInFlight) return;
+    {
         const emailVal = emailInputLogin ? emailInputLogin.value.trim() : '';
         const password = passwordInput ? passwordInput.value.trim() : '';
         const rawUsername = usernameInputLogin ? usernameInputLogin.value.trim() : '';
 
         if (!emailVal || !password || (isRegistering && !rawUsername)) {
-            if (errorMsg) {
-                errorMsg.textContent = 'Preencha todos os campos obrigatórios.';
-                errorMsg.style.display = 'block';
-            }
+            showLoginError('Preencha todos os campos obrigatórios.');
             return;
         }
 
         if (errorMsg) errorMsg.style.display = 'none';
+        loginInFlight = true;
+        if (submitLoginBtn) submitLoginBtn.disabled = true;
 
-        if (isRegistering) {
-            const { data, error } = await supabaseClient.auth.signUp({ 
-                email: emailVal, 
-                password: password 
-            });
-            
-            if (error) {
-                if (errorMsg) {
-                    errorMsg.textContent = error.message;
-                    errorMsg.style.display = 'block';
-                }
-                return;
-            }
+        try {
+            if (isRegistering) {
+                // O username vai como metadata: o trigger handle_new_user() cria a linha
+                // em profiles no servidor, sem INSERT vindo do navegador (que o RLS bloqueia).
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email: emailVal,
+                    password: password,
+                    options: { data: { username: rawUsername } }
+                });
 
-            if (data.user) {
-                const displayName = rawUsername || emailVal.split('@')[0];
-                const { error: profileError } = await supabaseClient.from('profiles').upsert([{ 
-                    id: data.user.id, 
-                    email: emailVal, 
-                    username: displayName 
-                }]);
-
-                if (profileError) {
-                    if (errorMsg) {
-                        errorMsg.textContent = 'Erro ao salvar perfil: ' + profileError.message;
-                        errorMsg.style.display = 'block';
-                    }
+                if (error) {
+                    showLoginError(error.message);
                     return;
                 }
 
-                localStorage.setItem('kanbanUser', displayName);
-                initAppSession(data.user, displayName);
-            }
-        } else {
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ 
-                email: emailVal, 
-                password: password 
-            });
-
-            if (error) {
-                if (errorMsg) {
-                    errorMsg.textContent = 'E-mail ou senha incorretos.';
-                    errorMsg.style.display = 'block';
+                // Com "confirm email" ligado no Supabase, signUp devolve user sem sessão:
+                // gravar o perfil aqui falharia no RLS e o app entraria sem autenticação.
+                if (!data.session) {
+                    showLoginError('Conta criada. Confirme o e-mail antes de entrar.');
+                    isRegistering = false;
+                    if (toggleRegisterBtn) toggleRegisterBtn.textContent = 'Criar Conta';
+                    if (submitLoginBtn) submitLoginBtn.textContent = 'Entrar';
+                    if (registerNameGroup) registerNameGroup.style.display = 'none';
+                    return;
                 }
-                return;
-            }
 
-            if (data.user) {
-                const { data: profile } = await supabaseClient.from('profiles').select('username').eq('id', data.user.id).single();
-                const displayName = profile && profile.username ? profile.username : emailVal.split('@')[0];
+                const displayName = rawUsername || emailVal.split('@')[0];
+
+                // O perfil já existe (criado pelo trigger). Aqui só garantimos o apelido
+                // escolhido. Se falhar, não bloqueia o login: o nome cai no padrão.
+                const { error: profileError } = await supabaseClient
+                    .from('profiles')
+                    .update({ username: displayName })
+                    .eq('id', data.user.id);
+
+                if (profileError) {
+                    console.warn('Não foi possível gravar o apelido:', profileError.message);
+                }
+
                 localStorage.setItem('kanbanUser', displayName);
                 initAppSession(data.user, displayName);
+            } else {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: emailVal,
+                    password: password
+                });
+
+                if (error) {
+                    showLoginError('E-mail ou senha incorretos.');
+                    return;
+                }
+
+                if (data.user) {
+                    const displayName = await fetchDisplayName(data.user);
+                    localStorage.setItem('kanbanUser', displayName);
+                    initAppSession(data.user, displayName);
+                }
             }
+        } catch (err) {
+            console.error('Falha na autenticação:', err);
+            showLoginError('Não foi possível conectar. Tente novamente.');
+        } finally {
+            loginInFlight = false;
+            if (submitLoginBtn) submitLoginBtn.disabled = false;
+            if (passwordInput) passwordInput.value = '';
         }
+    }
+}
+
+if (submitLoginBtn) submitLoginBtn.addEventListener('click', handleLoginSubmit);
+
+// Enter em qualquer campo do login envia o formulário
+[usernameInputLogin, emailInputLogin, passwordInput].forEach(input => {
+    if (!input) return;
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); handleLoginSubmit(); }
     });
+});
+
+// Busca o nome de exibição sem quebrar quando o perfil ainda não existe
+async function fetchDisplayName(user) {
+    const fallback = (user.email || '').split('@')[0] || 'Usuário';
+    try {
+        const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (error) {
+            console.warn('Não foi possível carregar o perfil:', error.message);
+            return fallback;
+        }
+        return profile && profile.username ? profile.username : fallback;
+    } catch (err) {
+        console.warn('Não foi possível carregar o perfil:', err);
+        return fallback;
+    }
 }
 
 const logoutBtn = document.getElementById('btn-logout');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
-        if (presenceChannel) await supabaseClient.removeChannel(presenceChannel);
+        if (presenceChannel) {
+            await supabaseClient.removeChannel(presenceChannel);
+            presenceChannel = null;
+        }
         await supabaseClient.auth.signOut();
         localStorage.removeItem('kanbanUser');
+        currentUserSession = null;
+
+        // limpa a UI: sem isso o quadro e o chat do usuário anterior continuam atrás do overlay
+        if (boardElement) boardElement.innerHTML = '';
+        ['chat-messages', 'chat-channels-container', 'members-online-list', 'members-offline-list']
+            .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
+        const onlineCountEl = document.getElementById('online-count');
+        if (onlineCountEl) onlineCountEl.textContent = '0';
+
         if (loginOverlay) loginOverlay.classList.add('active');
     });
 }
 
 async function checkActiveSession() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session && session.user) {
-        const { data: profile } = await supabaseClient.from('profiles').select('username').eq('id', session.user.id).single();
-        const username = profile && profile.username ? profile.username : session.user.email.split('@')[0];
-        localStorage.setItem('kanbanUser', username);
-        initAppSession(session.user, username);
-    } else {
-        if (loginOverlay) loginOverlay.classList.add('active');
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session && session.user) {
+            const username = await fetchDisplayName(session.user);
+            localStorage.setItem('kanbanUser', username);
+            initAppSession(session.user, username);
+            return;
+        }
+    } catch (err) {
+        console.error('Falha ao restaurar sessão:', err);
     }
+    if (loginOverlay) loginOverlay.classList.add('active');
 }
 
 function initAppSession(user, username) {
@@ -170,7 +251,13 @@ function initAppSession(user, username) {
 // ==========================================
 // SUPABASE REALTIME PRESENCE (ONLINE / OFFLINE)
 // ==========================================
-function setupRealtimePresence(username) {
+async function setupRealtimePresence(username) {
+    // Sem isto, um novo login na mesma aba deixa o canal anterior ativo e duplica presenças
+    if (presenceChannel) {
+        await supabaseClient.removeChannel(presenceChannel);
+        presenceChannel = null;
+    }
+
     presenceChannel = supabaseClient.channel('workspace-presence', {
         config: { presence: { key: currentUserSession ? currentUserSession.id : username } }
     });
@@ -263,6 +350,8 @@ function closeSettingsModal() {
 async function saveProfileSettings() {
     const newName = usernameInput ? usernameInput.value.trim() : '';
     if (newName) {
+        // OBS: o papel de admin é decidido só pelo nome salvo no navegador (ver checkPermissions).
+        // Isso não é controle de acesso real — a regra precisa vir do servidor (RLS/claims).
         localStorage.setItem('kanbanUser', newName);
         if (previewNameText) previewNameText.textContent = newName;
         if (previewAvatarLetter) previewAvatarLetter.textContent = newName.charAt(0).toUpperCase();
@@ -322,9 +411,16 @@ themeCards.forEach(card => {
     });
 });
 
+const AVAILABLE_THEMES = ['sunset', 'midnight', 'cosmic'];
+
 function applyTheme(themeName) {
-    document.body.className = '';
-    document.body.classList.add('theme-' + themeName);
+    const theme = AVAILABLE_THEMES.includes(themeName) ? themeName : 'sunset';
+    // remover só as classes de tema preserva qualquer outra classe aplicada ao body
+    AVAILABLE_THEMES.forEach(t => document.body.classList.remove('theme-' + t));
+    document.body.classList.add('theme-' + theme);
+    document.querySelectorAll('.theme-option-card').forEach(card => {
+        card.classList.toggle('active', card.getAttribute('data-theme') === theme);
+    });
 }
 
 function loadUserSettings() {
@@ -449,9 +545,9 @@ if (saveTaskBtn) {
         const assignee = taskAssigneeInput ? taskAssigneeInput.value.trim() || 'Sem responsável' : 'Sem responsável';
         const dueDate = taskDueDateInput ? taskDueDateInput.value : ''; 
         if (text !== '') {
+            // o callback já persiste o quadro; chamar saveBoard() aqui duplicava a escrita
             if (currentTaskCallback) currentTaskCallback(text, assignee, dueDate);
             closeTaskModal();
-            saveBoard();
         }
     });
 }
@@ -516,6 +612,33 @@ if (saveConfirmBtn) {
         closeConfirmModal();
     });
 }
+
+// Fechar modais com Esc ou clicando fora do conteúdo
+function closeTopMostModal() {
+    if (confirmModal && confirmModal.classList.contains('active')) return closeConfirmModal();
+    if (taskModal && taskModal.classList.contains('active')) return closeTaskModal();
+    if (colModal && colModal.classList.contains('active')) return closeColModal();
+    if (settingsModal && settingsModal.classList.contains('active')) return closeSettingsModal();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeTopMostModal();
+});
+
+[[taskModal, closeTaskModal], [colModal, closeColModal], [confirmModal, closeConfirmModal], [settingsModal, closeSettingsModal]]
+    .forEach(([overlay, close]) => {
+        if (!overlay) return;
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    });
+
+// Enter confirma nos modais de texto
+[[taskTitleInput, saveTaskBtn], [taskAssigneeInput, saveTaskBtn], [colTitleInput, colSaveBtn]]
+    .forEach(([input, button]) => {
+        if (!input || !button) return;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); button.click(); }
+        });
+    });
 
 // ==========================================
 // ARRASTAR KANBAN E LOCALSTORAGE
@@ -582,7 +705,7 @@ function formatISODate(date) {
 }
 
 function formatDateBR(isoDateStr) {
-    const [year, month, day] = isoDateStr.split('-');
+    const [, month, day] = isoDateStr.split('-');
     return `${day}/${month}`;
 }
 
@@ -808,13 +931,25 @@ function saveBoard() {
     document.querySelectorAll('.column').forEach(column => {
         const cardsData = [];
         column.querySelectorAll('.card').forEach(card => {
-            const assigneeName = card.querySelector('.assignee-avatar').dataset.assignee || 'Sem responsável';
-            const dueDate = card.querySelector('.due-badge').dataset.duedate || '';
-            cardsData.push({ text: card.querySelector('.card-text').textContent, assignee: assigneeName, dueDate: dueDate });
+            const avatarEl = card.querySelector('.assignee-avatar');
+            const badgeEl = card.querySelector('.due-badge');
+            const textEl = card.querySelector('.card-text');
+            if (!textEl) return;
+            cardsData.push({
+                text: textEl.textContent,
+                assignee: (avatarEl && avatarEl.dataset.assignee) || 'Sem responsável',
+                dueDate: (badgeEl && badgeEl.dataset.duedate) || ''
+            });
         });
-        columnsData.push({ id: column.id, title: column.querySelector('h2').textContent, cards: cardsData });
+        const titleEl = column.querySelector('h2');
+        columnsData.push({ id: column.id, title: titleEl ? titleEl.textContent : 'Sem título', cards: cardsData });
     });
-    try { localStorage.setItem('kanbanDataPremium', JSON.stringify(columnsData)); } catch (err) { console.error(err); }
+    try {
+        localStorage.setItem('kanbanDataPremium', JSON.stringify(columnsData));
+    } catch (err) {
+        console.error('Falha ao salvar o quadro:', err);
+        alert('Não foi possível salvar o quadro (armazenamento cheio). Exporte um backup e libere espaço.');
+    }
 }
 
 function loadBoard() {
@@ -825,7 +960,7 @@ function loadBoard() {
     
     let columnsData;
     try { columnsData = JSON.parse(savedData); } catch (err) { checkPermissions(); return; }
-    if (!Array.isArray(columnsData)) return;
+    if (!Array.isArray(columnsData)) { checkPermissions(); return; }
 
     columnsData.forEach(colData => {
         if (!colData || !colData.id || !colData.title) return;
@@ -848,15 +983,18 @@ const CALENDAR_MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio',
 function collectTasksWithDueDates() {
     const tasks = [];
     document.querySelectorAll('.column').forEach(column => {
-        const columnTitle = column.querySelector('h2').textContent;
+        const columnTitleEl = column.querySelector('h2');
+        const columnTitle = columnTitleEl ? columnTitleEl.textContent : 'Sem título';
         column.querySelectorAll('.card').forEach(card => {
             const dueBadge = card.querySelector('.due-badge');
-            const dueDate = dueBadge.dataset.duedate;
-            if (!dueDate) return;
+            const textEl = card.querySelector('.card-text');
+            const avatarEl = card.querySelector('.assignee-avatar');
+            const dueDate = dueBadge && dueBadge.dataset.duedate;
+            if (!dueDate || !textEl) return;
             const info = getDueDateInfo(dueDate);
             tasks.push({
-                text: card.querySelector('.card-text').textContent,
-                assignee: card.querySelector('.assignee-avatar').dataset.assignee || 'Sem responsável',
+                text: textEl.textContent,
+                assignee: (avatarEl && avatarEl.dataset.assignee) || 'Sem responsável',
                 dueDate, columnTitle, level: info ? info.level : 'green'
             });
         });
@@ -921,7 +1059,9 @@ function renderCalendar() {
             selectedCalendarDay = dateStr;
             grid.querySelectorAll('.calendar-cell-selected').forEach(c => c.classList.remove('calendar-cell-selected'));
             cell.classList.add('calendar-cell-selected');
-            renderCalendarDayTasks(dateStr, dayTasks);
+            // recalcula a partir do quadro atual: o closure ficaria desatualizado após editar tarefas
+            const fresh = collectTasksWithDueDates().filter(t => t.dueDate === dateStr);
+            renderCalendarDayTasks(dateStr, fresh);
         });
 
         grid.appendChild(cell);
@@ -966,13 +1106,24 @@ function renderCalendarDayTasks(dateStr, tasks) {
 }
 
 const prevMonthBtn = document.getElementById('calendar-prev-month');
-if (prevMonthBtn) prevMonthBtn.addEventListener('click', () => { calendarViewDate.setMonth(calendarViewDate.getMonth() - 1); renderCalendar(); });
+// setMonth() no dia 31 "pula" meses curtos (31/03 -> 03/03). Sempre ancorar no dia 1.
+function shiftCalendarMonth(delta) {
+    calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + delta, 1);
+    renderCalendar();
+}
+
+if (prevMonthBtn) prevMonthBtn.addEventListener('click', () => shiftCalendarMonth(-1));
 
 const nextMonthBtn = document.getElementById('calendar-next-month');
-if (nextMonthBtn) nextMonthBtn.addEventListener('click', () => { calendarViewDate.setMonth(calendarViewDate.getMonth() + 1); renderCalendar(); });
+if (nextMonthBtn) nextMonthBtn.addEventListener('click', () => shiftCalendarMonth(1));
 
 const todayBtn = document.getElementById('calendar-today-btn');
-if (todayBtn) todayBtn.addEventListener('click', () => { calendarViewDate = new Date(); selectedCalendarDay = formatISODate(new Date()); renderCalendar(); });
+if (todayBtn) todayBtn.addEventListener('click', () => {
+    const now = new Date();
+    calendarViewDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    selectedCalendarDay = formatISODate(now);
+    renderCalendar();
+});
 
 // ==========================================
 // CHAT DA EQUIPE
@@ -981,10 +1132,18 @@ const CHAT_STORAGE_KEY = 'kanbanChatMessages';
 let currentChatChannel = 'geral';
 
 function loadChatMessages() {
-    try { return JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY)) || {}; } catch (err) { return {}; }
+    const data = readJSON(CHAT_STORAGE_KEY, {});
+    return (data && typeof data === 'object' && !Array.isArray(data)) ? data : {};
 }
 function saveChatMessages(data) {
-    try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(data)); } catch (err) {}
+    try {
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(data));
+        return true;
+    } catch (err) {
+        console.error('Falha ao salvar mensagens:', err);
+        alert('Não foi possível salvar a mensagem (armazenamento cheio).');
+        return false;
+    }
 }
 
 function renderChatChannels() {
@@ -992,8 +1151,8 @@ function renderChatChannels() {
     if (!container) return;
     container.innerHTML = '';
     
-    let channels = JSON.parse(localStorage.getItem('kanbanChatChannels'));
-    if (!channels || channels.length === 0) {
+    let channels = readJSON('kanbanChatChannels', null);
+    if (!Array.isArray(channels) || channels.length === 0) {
         channels = ['geral', 'equipe', 'avisos'];
         localStorage.setItem('kanbanChatChannels', JSON.stringify(channels));
     }
@@ -1058,7 +1217,7 @@ if (addChannelBtn) {
             const safeTitle = title.trim().toLowerCase().replace(/\s+/g, '-');
             if (safeTitle === '') return;
             
-            let channels = JSON.parse(localStorage.getItem('kanbanChatChannels')) || [];
+            const channels = readJSON('kanbanChatChannels', []);
             if (!channels.includes(safeTitle)) {
                 channels.push(safeTitle);
                 localStorage.setItem('kanbanChatChannels', JSON.stringify(channels));

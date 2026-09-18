@@ -15,19 +15,19 @@
         <div class="modal-content" style="align-items: center;">
             <div class="sidebar-logo" style="margin-bottom: 10px; width: 64px; height: 64px; font-size: 28px;">L</div>
             <h3 style="margin-bottom: 5px;">Kanban Premium</h3>
-            <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 20px; text-align: center;">Faça login com seu nome de usuário</p>
+            <p style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 20px; text-align: center;">Entre com seu e-mail e senha</p>
             
             <div class="input-group" style="width: 100%;">
-                <label>Nome de Usuário</label>
-                <input type="text" id="login-username" placeholder="Ex: Saniel" autocomplete="username">
-            </div>
-            <!-- Campo de e-mail exclusivo para o momento de Criar Conta -->
-            <div class="input-group" id="register-email-group" style="width: 100%; margin-top: 10px; display: none;">
-                <label>E-mail</label>
+                <label for="login-email">E-mail</label>
                 <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
             </div>
+            <!-- Nome de usuário só é pedido ao criar conta -->
+            <div class="input-group" id="register-name-group" style="width: 100%; margin-top: 10px; display: none;">
+                <label for="login-username">Nome de Usuário</label>
+                <input type="text" id="login-username" placeholder="Ex: Saniel" autocomplete="username">
+            </div>
             <div class="input-group" style="width: 100%; margin-top: 10px;">
-                <label>Senha</label>
+                <label for="login-password">Senha</label>
                 <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
             </div>
             

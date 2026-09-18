@@ -862,3 +862,8 @@ body {
 .chat-channel-wrapper .chat-channel { flex-grow: 1; }
 .delete-channel-btn { background: rgba(255, 71, 87, 0.1); color: #ff4757; display: none; }
 .delete-channel-btn:hover { background: #ff4757; color: white; }
+/* Destaque do tema atualmente aplicado */
+.theme-option-card.active {
+    border-color: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
